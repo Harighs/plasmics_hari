@@ -1,5 +1,5 @@
 import pygame
-import numpy as np
+import random
 
 # Initialize the Pygame library
 pygame.init()
@@ -22,29 +22,38 @@ screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Game of Life for PLASMICS")
 
 # Create the grid
-grid = np.random.choice([0, 1], size=(GRID_HEIGHT, GRID_WIDTH))
+grid = [[random.choice([0, 1]) for _ in range(GRID_WIDTH)] for _ in range(GRID_HEIGHT)]
 
 
 def get_neighbor_count(grid, x, y):
-    return np.sum(grid[(y-1):(y+2), (x-1):(x+2)]) - grid[y, x]
-
-def update_grid(grid):
-    counts = np.zeros_like(grid)
+    count = 0
     for i in range(-1, 2):
         for j in range(-1, 2):
-            neighbor_indices = (np.array([i, j]) + np.indices((GRID_HEIGHT, GRID_WIDTH))) % np.array([GRID_HEIGHT, GRID_WIDTH])
-            counts += grid[neighbor_indices[0], neighbor_indices[1]]
-    counts -= grid
-    new_grid = np.zeros_like(grid)
-    new_grid[(grid == 1) & ((counts == 2) | (counts == 3))] = 1
-    new_grid[(grid == 0) & (counts == 3)] = 1
+            neighbor_x = (x + j + GRID_WIDTH) % GRID_WIDTH
+            neighbor_y = (y + i + GRID_HEIGHT) % GRID_HEIGHT
+            count += grid[neighbor_y][neighbor_x]
+    count -= grid[y][x]
+    return count
+
+
+def update_grid(grid):
+    new_grid = [[0] * GRID_WIDTH for _ in range(GRID_HEIGHT)]
+    for y in range(GRID_HEIGHT):
+        for x in range(GRID_WIDTH):
+            count = get_neighbor_count(grid, x, y)
+            if grid[y][x] == 1:
+                if count in [2, 3]:
+                    new_grid[y][x] = 1
+            elif count == 3:
+                new_grid[y][x] = 1
     return new_grid
 
 
 def draw_grid():
-    live_cells = np.where(grid == 1)
-    for y, x in zip(live_cells[0], live_cells[1]):
-        pygame.draw.rect(screen, WHITE, (x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE))
+    for y in range(GRID_HEIGHT):
+        for x in range(GRID_WIDTH):
+            if grid[y][x] == 1:
+                pygame.draw.rect(screen, WHITE, (x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE))
 
 
 # Game loop
@@ -56,10 +65,16 @@ while running:
         if event.type == pygame.QUIT:
             running = False
         elif event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_c:
-                grid = np.zeros_like(grid)
+            if event.key == pygame.K_SPACE:
+                paused = not paused
+            elif event.key == pygame.K_c:
+                grid = [[0] * GRID_WIDTH for _ in range(GRID_HEIGHT)]
             elif event.key == pygame.K_r:
-                grid = np.random.choice([0, 1], size=(GRID_HEIGHT, GRID_WIDTH))
+                grid = [[random.choice([0, 1]) for _ in range(GRID_WIDTH)] for _ in range(GRID_HEIGHT)]
+            # mouse key:
+        if pygame.mouse.get_pressed()[0]:
+            mouse_x, mouse_y = pygame.mouse.get_pos()
+            grid[mouse_y // CELL_SIZE][mouse_x // CELL_SIZE] = 1
 
     if not paused:
         grid = update_grid(grid)
